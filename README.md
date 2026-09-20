@@ -107,6 +107,7 @@ Runs paid-API scrapers (SerpAPI free tier: ~100 searches/month), then calls `dai
 
 ```
 soogle/
+  mise.toml               Dev tools (uv, ruff, prek) + task runner
   daily.bash              Daily cron script (free scrapers + processing)
   weekly.bash             Weekly cron script (paid APIs + daily.bash)
    pyproject.toml        dependencies (requests, pymysql, beautifulsoup4, anthropic, django)
@@ -152,9 +153,10 @@ uv run python -m scrape status
 
 ## Requirements
 
+- [mise](https://mise.jdx.dev) — dev tools (uv, ruff, prek) and task runner
 - Python 3.10+
 - MySQL / MariaDB
-- `uv sync` (requests, pymysql, beautifulsoup4, anthropic, django)
+- `mise install` (installs uv, ruff, prek + git hooks)
 
 Environment variables:
 
@@ -166,6 +168,10 @@ Environment variables:
 ## Running
 
 ```bash
+# Install dependencies and git hooks
+mise install
+mise run install        # uv sync
+
 # Run the daily pipeline
 ./daily.bash
 
@@ -178,8 +184,12 @@ uv run python -m scrape process
 uv run python -m scrape llm-review --model claude-haiku-4-5-20251001 --scope unreviewed
 
 # Run the web server
-cd web
-uv run python manage.py runserver
+mise run server         # uv run python web/manage.py runserver
+
+# Tests and lint
+mise run test
+mise run lint
+mise run hooks          # prek run (all git hooks)
 ```
 
 ## Related
