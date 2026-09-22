@@ -21,7 +21,7 @@ import sys
 
 from sqlalchemy import func, select
 
-from . import db
+from . import config, db
 from .schema import (
     blocklist,
     package_categories,
@@ -321,8 +321,8 @@ def main():
     llm.add_argument("--limit", type=int, default=None, help="Max packages to review")
     llm.add_argument("--fetch-only", action="store_true", help="Only fetch READMEs, skip LLM")
     llm.add_argument("--review-only", action="store_true", help="Skip README fetch, LLM only")
-    llm.add_argument("--model", default="claude-haiku-4-5-20251001",
-                     help="Anthropic model to use (default: claude-haiku-4-5-20251001)")
+    llm.add_argument("--model", default=config.OPENAI_MODEL,
+                     help="Model to use (default: %(default)s)")
     llm.add_argument("--scope", choices=["unreviewed", "upgrade", "all"],
                      default="unreviewed",
                      help="unreviewed=new only, upgrade=re-review items from a lower model, all=everything")
@@ -333,8 +333,8 @@ def main():
 
     vr = sub.add_parser("video-review", help="LLM quality review of videos")
     vr.add_argument("--limit", type=int, default=None, help="Max videos to review")
-    vr.add_argument("--model", default="claude-haiku-4-5-20251001",
-                    help="Anthropic model to use (default: claude-haiku-4-5-20251001)")
+    vr.add_argument("--model", default=config.OPENAI_MODEL,
+                    help="Model to use (default: %(default)s)")
     vr.add_argument("--scope", choices=["unreviewed", "upgrade", "all"],
                     default="unreviewed",
                     help="unreviewed=new only, upgrade=re-review items from a lower model, all=everything")

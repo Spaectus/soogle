@@ -58,7 +58,7 @@ if DB_ENGINE == "mysql" and not DB_PASS:
 DB_NAME = os.environ.get("SOOGLE_DB_NAME", "soogle")
 
 # GitHub
-GITHUB_TOKEN = os.environ.get("GH_TOKEN", "")
+GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
 GITHUB_API = "https://api.github.com"
 GITHUB_SEARCH_PER_PAGE = 100
 GITHUB_SEARCH_PAUSE = 2.5          # seconds between search requests (30/min limit)
@@ -84,6 +84,12 @@ BING_RESULTS_PER_QUERY = 20
 # LLM analysis (for site structure assessment)
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 ANALYZE_MODEL = "claude-sonnet-4-6"
+
+# LLM review backend. Set OPENAI_BASE_URL to any OpenAI-compatible endpoint
+# (vLLM, Ollama, LM Studio, OpenRouter, ...); leave empty to use Anthropic.
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
+OPENAI_BASE_URL = os.environ.get("OPENAI_BASE_URL", "")
+OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "claude-haiku-4-5-20251001")
 
 # Processing
 PROCESS_BATCH_SIZE = 100
