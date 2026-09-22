@@ -9,6 +9,7 @@ dependencies = [
     "beautifulsoup4>=4.12",
     "anthropic>=0.40",
     "django>=4.2",
+    "sqlglot>=25",
 ]
 
 [dependency-groups]

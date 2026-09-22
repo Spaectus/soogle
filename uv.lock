@@ -720,6 +720,7 @@ dependencies = [
     { name = "django", version = "6.1.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "pymysql" },
     { name = "requests" },
+    { name = "sqlglot" },
 ]
 
 [package.dev-dependencies]
@@ -734,6 +735,7 @@ requires-dist = [
     { name = "django", specifier = ">=4.2" },
     { name = "pymysql", specifier = ">=1.1" },
     { name = "requests", specifier = ">=2.31" },
+    { name = "sqlglot", specifier = ">=25" },
 ]
 
 [package.metadata.requires-dev]
@@ -746,6 +748,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/69/99/a6ca3beb3ccacb41fb3321d8a60e5566f9e6467601ef8eba6a17e1b89778/soupsieve-2.9.2.tar.gz", hash = "sha256:4a55d8cf158a9c2e587fa4922f1bbb91d68ac829e2d6f25403a85747c71daf74", size = 122445, upload-time = "2026-08-07T00:57:24.801Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/eb/dc/ad025c1ee131eba60c69f4dd5779b18fcf1e6b21a343e2162a84d5d133c7/soupsieve-2.9.2-py3-none-any.whl", hash = "sha256:8089a26fd974ca7a1f30276d3d8492ab266ab15af581642dfe8aa162e0c1c823", size = 37370, upload-time = "2026-08-07T00:57:23.524Z" },
+]
+
+[[package]]
+name = "sqlglot"
+version = "30.19.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/fe/48/996687ba146c07deee6cc3528738e645d2e72805e023ed9672b483648378/sqlglot-30.19.0.tar.gz", hash = "sha256:6fcfbe93c5ee76e07faadf0930dd119eebb545c4f317f8e4f205f177305d8b08", size = 6042945, upload-time = "2026-09-22T15:19:58.64Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/10/94/094d83ec808b50374f33a3024c9e60ca3074595e1f9581c1692591fda81e/sqlglot-30.19.0-py3-none-any.whl", hash = "sha256:b4500fcced395359feea582f09d2d4433bf1f36362a3a9d0d6d5ebbc1f84242e", size = 756203, upload-time = "2026-09-22T15:19:56.761Z" },
 ]
 
 [[package]]
