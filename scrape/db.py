@@ -2,9 +2,9 @@
 
 Supports MySQL (default) and SQLite.  Set SOOGLE_DB_ENGINE=sqlite to use a
 local SQLite file (SOOGLE_DB_PATH, default soogle.db) instead of a MySQL
-server.  The SQLite path translates the few MySQL-isms in the raw SQL
-(NOW(), ON DUPLICATE KEY UPDATE, INSERT IGNORE, %s placeholders) at the
-cursor, so the scrapers' SQL stays unchanged.
+server.  The SQLite path transpiles the MySQL-flavored raw SQL to SQLite at
+the cursor (via sqlglot, plus a small fallback for the upsert and NOW() that
+sqlglot doesn't translate), so the scrapers' SQL stays unchanged.
 """
 
 import hashlib
@@ -14,6 +14,7 @@ import sqlite3
 from contextlib import contextmanager
 
 import pymysql
+import sqlglot
 
 from . import config
 
@@ -33,7 +34,6 @@ def _translate(sql):
     sql = sql.replace("%%", "%")
     sql = sql.replace("%s", "?")
     sql = sql.replace("NOW()", "datetime('now')")
-    sql = sql.replace("INSERT IGNORE INTO", "INSERT OR IGNORE INTO")
     m = re.search(r"INSERT INTO (\w+)", sql)
     if m and "ON DUPLICATE KEY UPDATE" in sql:
         cols = _CONFLICT_COLS.get(m.group(1))
@@ -45,7 +45,7 @@ def _translate(sql):
             "ON DUPLICATE KEY UPDATE", f"ON CONFLICT({cols}) DO UPDATE SET"
         )
         sql = re.sub(r"VALUES\((\w+)\)", r"excluded.\1", sql)
-    return sql
+    return sqlglot.transpile(sql, read="mysql", write="sqlite")[0]
 
 
 class _SqliteCursor(sqlite3.Cursor):
