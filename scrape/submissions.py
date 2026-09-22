@@ -19,31 +19,33 @@ import smtplib
 from email.message import EmailMessage
 from urllib.parse import urlparse
 
+from sqlalchemy import select
+
 from . import config, db
+from .schema import packages, scrape_raw, site_submissions
 from .web import DiscoveryScraper
 
 log = logging.getLogger(__name__)
 
 
 def _fetch_pending(conn, limit):
-    sql = ("SELECT id, url, comment FROM site_submissions "
-           "WHERE status = 'pending' ORDER BY id")
-    args = ()
+    stmt = (
+        select(site_submissions.c.id, site_submissions.c.url, site_submissions.c.comment)
+        .where(site_submissions.c.status == "pending")
+        .order_by(site_submissions.c.id)
+    )
     if limit:
-        sql += " LIMIT %s"
-        args = (limit,)
-    with conn.cursor() as cur:
-        cur.execute(sql, args)
-        return cur.fetchall()
+        stmt = stmt.limit(limit)
+    return conn.execute(stmt).mappings().fetchall()
 
 
 def _mark(conn, sub_id, status):
-    with conn.cursor() as cur:
-        cur.execute(
-            "UPDATE site_submissions SET status = %s WHERE id = %s",
-            (status, sub_id),
-        )
-        conn.commit()
+    conn.execute(
+        site_submissions.update()
+        .where(site_submissions.c.id == sub_id)
+        .values(status=status)
+    )
+    conn.commit()
 
 
 def _sanity_check(url):
@@ -60,15 +62,13 @@ def _sanity_check(url):
 
 def _already_known(conn, url):
     """True if this exact URL is already in packages or scrape_raw."""
-    with conn.cursor() as cur:
-        cur.execute("SELECT 1 FROM packages WHERE url = %s LIMIT 1", (url,))
-        if cur.fetchone():
-            return True
-        cur.execute(
-            "SELECT 1 FROM scrape_raw WHERE external_id = %s LIMIT 1",
-            (url,),
-        )
-        return bool(cur.fetchone())
+    if conn.execute(
+        select(packages.c.id).where(packages.c.url == url).limit(1)
+    ).fetchone():
+        return True
+    return bool(conn.execute(
+        select(scrape_raw.c.id).where(scrape_raw.c.external_id == url).limit(1)
+    ).fetchone())
 
 
 # Minimum number of internal links or file links to flag a submission as a

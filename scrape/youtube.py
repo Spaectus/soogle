@@ -12,6 +12,7 @@ import re
 import time
 
 from . import config, db
+from .schema import videos
 
 log = logging.getLogger(__name__)
 
@@ -230,27 +231,32 @@ class YouTubeScraper:
         """Insert or update a video row. Returns True if new."""
         if db.is_blocked(self.conn, "youtube", video_id):
             return False
-        with self.conn.cursor() as cur:
-            try:
-                cur.execute(
-                    "INSERT INTO videos "
-                    "(video_id, title, url, description, channel_name, channel_url, "
-                    "thumbnail_url, duration_seconds, published_at, view_count, "
-                    "dialect, source) "
-                    "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) "
-                    "ON DUPLICATE KEY UPDATE "
-                    "title=VALUES(title), description=VALUES(description), "
-                    "view_count=VALUES(view_count), thumbnail_url=VALUES(thumbnail_url)",
-                    (video_id, title[:500], url, (description or "")[:5000],
-                     channel_name or "", channel_url or "", thumbnail_url or "",
-                     duration_seconds, published_at, view_count,
-                     dialect, source),
+        try:
+            result = self.conn.execute(
+                db.upsert(
+                    videos,
+                    {
+                        "video_id": video_id,
+                        "title": title[:500],
+                        "url": url,
+                        "description": (description or "")[:5000],
+                        "channel_name": channel_name or "",
+                        "channel_url": channel_url or "",
+                        "thumbnail_url": thumbnail_url or "",
+                        "duration_seconds": duration_seconds,
+                        "published_at": published_at,
+                        "view_count": view_count,
+                        "dialect": dialect,
+                        "source": source,
+                    },
+                    ["video_id"],
                 )
-                self.conn.commit()
-                return cur.rowcount == 1  # 1 = insert, 2 = update
-            except db.IntegrityError:
-                self.conn.rollback()
-                return False
+            )
+            self.conn.commit()
+            return result.rowcount == 1  # 1 = insert, 2 = update
+        except db.IntegrityError:
+            self.conn.rollback()
+            return False
 
     def _process_search_result(self, r, source="youtube"):
         """Extract fields from a SerpAPI YouTube search result and save."""

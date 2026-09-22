@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 """SQLite backend end-to-end: scrape_raw -> process -> packages.
 
-Exercises the MySQL->SQLite translation layer in scrape/db.py against a real
-SQLite file: schema load, scrape job, scrape_raw insert, processing into
-packages, the ON CONFLICT upsert (update not duplicate), INSERT OR IGNORE,
-and NOW() translation.
+Exercises the SQLAlchemy Core layer in scrape/db.py against a real SQLite
+file: schema load, scrape job, scrape_raw insert, processing into packages,
+the upsert (update not duplicate), INSERT IGNORE, and NOW().
 
 No MySQL env vars are set here, so the engine auto-detects to SQLite.
 
@@ -21,8 +20,11 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import sqlite3
 
+from sqlalchemy import func, select
+
 from scrape import config, db
 from scrape.processor import process_all
+from scrape.schema import blocklist, packages, scrape_jobs
 
 results = []
 
@@ -69,42 +71,46 @@ with db.connection() as conn:
     check(result["processed"] == 1 and result["errors"] == 0,
           "process_all processes the row")
 
-    with conn.cursor() as cur:
-        cur.execute("SELECT name, dialect, stars FROM packages")
-        pkg = cur.fetchone()
-        check(pkg and pkg["name"] == "pharo-project" and pkg["dialect"] == "pharo",
-              "package upserted with detected dialect")
+    pkg = conn.execute(
+        select(packages.c.name, packages.c.dialect, packages.c.stars)
+    ).mappings().fetchone()
+    check(pkg and pkg["name"] == "pharo-project" and pkg["dialect"] == "pharo",
+          "package upserted with detected dialect")
 
-    # Re-scrape with changed stars -> ON CONFLICT update, not a duplicate
+    # Re-scrape with changed stars -> upsert updates, not a duplicate
     meta["stargazers_count"] = 200
     db.insert_scrape_raw(conn, job_id, site_id, "pharo-project/pharo", meta)
     process_all(conn)
-    with conn.cursor() as cur:
-        cur.execute("SELECT COUNT(*) AS n FROM packages")
-        check(cur.fetchone()["n"] == 1, "re-process updates, does not duplicate")
-        cur.execute("SELECT stars FROM packages")
-        check(cur.fetchone()["stars"] == 200, "upsert updates changed fields")
+    check(conn.execute(select(func.count()).select_from(packages)).scalar() == 1,
+          "re-process updates, does not duplicate")
+    check(conn.execute(select(packages.c.stars)).scalar() == 200,
+          "upsert updates changed fields")
 
-    # INSERT IGNORE translation (blocklist)
-    cur = conn.cursor()
-    cur.execute(
-        "INSERT IGNORE INTO blocklist (external_id, site_name, reason) "
-        "VALUES (%s, %s, %s)",
-        ("pharo-project/pharo", "github", "test"),
+    # INSERT IGNORE (blocklist)
+    conn.execute(
+        db.insert_ignore(
+            blocklist,
+            {"external_id": "pharo-project/pharo", "site_name": "github", "reason": "test"},
+            ["external_id", "site_name"],
+        )
     )
     conn.commit()
-    cur.execute(
-        "INSERT IGNORE INTO blocklist (external_id, site_name, reason) "
-        "VALUES (%s, %s, %s)",
-        ("pharo-project/pharo", "github", "test"),
+    conn.execute(
+        db.insert_ignore(
+            blocklist,
+            {"external_id": "pharo-project/pharo", "site_name": "github", "reason": "test"},
+            ["external_id", "site_name"],
+        )
     )
     conn.commit()
-    cur.execute("SELECT COUNT(*) AS n FROM blocklist")
-    check(cur.fetchone()["n"] == 1, "INSERT IGNORE dedupes on conflict")
+    check(conn.execute(select(func.count()).select_from(blocklist)).scalar() == 1,
+          "INSERT IGNORE dedupes on conflict")
 
-    # NOW() translation (scrape_jobs timestamps)
-    cur.execute("SELECT started_at FROM scrape_jobs WHERE id = %s", (job_id,))
-    check(cur.fetchone()["started_at"] is not None, "NOW() translated to a timestamp")
+    # NOW() (scrape_jobs timestamps)
+    started = conn.execute(
+        select(scrape_jobs.c.started_at).where(scrape_jobs.c.id == job_id)
+    ).scalar()
+    check(started is not None, "NOW() translated to a timestamp")
 
 print(f"\n{sum(results)}/{len(results)} checks passed")
 sys.exit(0 if all(results) else 1)
