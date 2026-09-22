@@ -1,12 +1,92 @@
-"""Database helpers for Soogle scrapers."""
+"""Database helpers for Soogle scrapers.
 
-import json
+Supports MySQL (default) and SQLite.  Set SOOGLE_DB_ENGINE=sqlite to use a
+local SQLite file (SOOGLE_DB_PATH, default soogle.db) instead of a MySQL
+server.  The SQLite path translates the few MySQL-isms in the raw SQL
+(NOW(), ON DUPLICATE KEY UPDATE, INSERT IGNORE, %s placeholders) at the
+cursor, so the scrapers' SQL stays unchanged.
+"""
+
 import hashlib
-import pymysql
+import json
+import re
+import sqlite3
 from contextlib import contextmanager
+
+import pymysql
+
 from . import config
 
 _BLOCKLIST = None
+
+# Unique constraint each upsert targets, per table.  Used to translate
+# MySQL's `ON DUPLICATE KEY UPDATE` into SQLite's `ON CONFLICT(...) DO UPDATE`.
+_CONFLICT_COLS = {
+    "packages": "site_id, external_id",
+    "site_analyses": "domain",
+    "videos": "video_id",
+}
+
+
+def _translate(sql):
+    """Translate the MySQL-isms in a SQL statement to SQLite."""
+    sql = sql.replace("%%", "%")
+    sql = sql.replace("%s", "?")
+    sql = sql.replace("NOW()", "datetime('now')")
+    sql = sql.replace("INSERT IGNORE INTO", "INSERT OR IGNORE INTO")
+    m = re.search(r"INSERT INTO (\w+)", sql)
+    if m and "ON DUPLICATE KEY UPDATE" in sql:
+        cols = _CONFLICT_COLS.get(m.group(1))
+        if cols is None:
+            raise ValueError(
+                f"ON DUPLICATE KEY UPDATE on unknown table {m.group(1)!r}"
+            )
+        sql = sql.replace(
+            "ON DUPLICATE KEY UPDATE", f"ON CONFLICT({cols}) DO UPDATE SET"
+        )
+        sql = re.sub(r"VALUES\((\w+)\)", r"excluded.\1", sql)
+    return sql
+
+
+class _SqliteCursor(sqlite3.Cursor):
+    def execute(self, sql, parameters=()):
+        return super().execute(_translate(sql), parameters)
+
+    # sqlite3.Cursor's __enter__/__exit__ are not inherited by subclasses.
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+class _SqliteConnection(sqlite3.Connection):
+    def cursor(self, *args, **kwargs):
+        cur = _SqliteCursor(self, *args, **kwargs)
+        cur.row_factory = self.row_factory
+        return cur
+
+
+def connect():
+    if config.DB_ENGINE == "sqlite":
+        conn = sqlite3.connect(config.DB_PATH, factory=_SqliteConnection)
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA foreign_keys = ON")
+        return conn
+    return pymysql.connect(
+        host=config.DB_HOST,
+        port=config.DB_PORT,
+        user=config.DB_USER,
+        password=config.DB_PASS,
+        database=config.DB_NAME,
+        charset="utf8mb4",
+        cursorclass=pymysql.cursors.DictCursor,
+        autocommit=False,
+    )
+
+
+# Exposed so callers don't import pymysql directly.
+IntegrityError = sqlite3.IntegrityError if config.DB_ENGINE == "sqlite" else pymysql.err.IntegrityError
 
 
 def load_blocklist(conn):
@@ -25,19 +105,6 @@ def load_blocklist(conn):
 def is_blocked(conn, site_name, external_id):
     """Check if an external_id is on the blocklist."""
     return (site_name, external_id) in load_blocklist(conn)
-
-
-def connect():
-    return pymysql.connect(
-        host=config.DB_HOST,
-        port=config.DB_PORT,
-        user=config.DB_USER,
-        password=config.DB_PASS,
-        database=config.DB_NAME,
-        charset="utf8mb4",
-        cursorclass=pymysql.cursors.DictCursor,
-        autocommit=False,
-    )
 
 
 @contextmanager
