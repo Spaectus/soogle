@@ -30,10 +30,10 @@ if ! command -v uv >/dev/null 2>&1; then
     log "FATAL: uv is not installed. See https://docs.astral.sh/uv/"
     exit 1
 fi
-if [ ! -x "$PYTHON_BIN" ] || ! deps=$("$PYTHON_BIN" -c 'import requests, pymysql, bs4, anthropic' 2>&1); then
+if [ ! -x "$PYTHON_BIN" ] || ! deps=$("$PYTHON_BIN" -c 'import requests, pymysql, bs4, anthropic, sqlalchemy' 2>&1); then
     log "Setting up .venv (uv sync)"
     uv sync || { log "FATAL: uv sync failed"; exit 1; }
-    if [ ! -x "$PYTHON_BIN" ] || ! deps=$("$PYTHON_BIN" -c 'import requests, pymysql, bs4, anthropic' 2>&1); then
+    if [ ! -x "$PYTHON_BIN" ] || ! deps=$("$PYTHON_BIN" -c 'import requests, pymysql, bs4, anthropic, sqlalchemy' 2>&1); then
         log "FATAL: uv sync did not produce a working $PYTHON_BIN:"
         printf '%s\n' "$deps" | sed 's/^/    /'
         exit 1

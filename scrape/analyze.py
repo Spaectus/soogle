@@ -11,14 +11,15 @@ Usage:
 
 import json
 import logging
-import os
 import time
-from urllib.parse import urlparse, urljoin
+from urllib.parse import urlparse
 
 import requests
 from bs4 import BeautifulSoup
+from sqlalchemy import func, select
 
 from . import config, db
+from .schema import scrape_raw, site_analyses
 
 log = logging.getLogger(__name__)
 
@@ -134,13 +135,13 @@ def _get_discovered_domains(conn, min_urls=2):
     Tracks all URLs per domain so we can compute the common subtree prefix.
     """
     site_id = db.get_site_id(conn, "web_discovered")
-    with conn.cursor() as cur:
-        cur.execute(
-            "SELECT external_id, raw_metadata FROM scrape_raw "
-            "WHERE site_id = %s AND status IN ('pending', 'processed')",
-            (site_id,),
+    rows = conn.execute(
+        select(scrape_raw.c.external_id, scrape_raw.c.raw_metadata)
+        .where(
+            scrape_raw.c.site_id == site_id,
+            scrape_raw.c.status.in_(["pending", "processed"]),
         )
-        rows = cur.fetchall()
+    ).mappings().fetchall()
 
     domains = {}
     for row in rows:
@@ -161,9 +162,7 @@ def _get_discovered_domains(conn, min_urls=2):
         del info["all_urls"]  # don't carry the full list forward
 
     # Filter to domains with enough hits and not already analyzed
-    with conn.cursor() as cur:
-        cur.execute("SELECT domain FROM site_analyses")
-        already = {r["domain"] for r in cur.fetchall()}
+    already = {r["domain"] for r in conn.execute(select(site_analyses.c.domain)).mappings().fetchall()}
 
     return {
         d: info for d, info in domains.items()
@@ -280,33 +279,24 @@ def _ask_llm(client, domain, sample_urls, probe):
 
 def _save_analysis(conn, domain, urls_found, sample_urls, root_title, result):
     """Save LLM analysis to site_analyses table."""
-    with conn.cursor() as cur:
-        cur.execute(
-            "INSERT INTO site_analyses "
-            "(domain, urls_found, sample_urls, root_page_title, has_sitemap, "
-            " structured_score, recommendation, llm_model) "
-            "VALUES (%s, %s, %s, %s, %s, %s, %s, %s) "
-            "ON DUPLICATE KEY UPDATE "
-            "urls_found = VALUES(urls_found), "
-            "sample_urls = VALUES(sample_urls), "
-            "root_page_title = VALUES(root_page_title), "
-            "has_sitemap = VALUES(has_sitemap), "
-            "structured_score = VALUES(structured_score), "
-            "recommendation = VALUES(recommendation), "
-            "llm_model = VALUES(llm_model), "
-            "analyzed_at = NOW()",
-            (
-                domain,
-                urls_found,
-                json.dumps(sample_urls),
-                root_title,
-                result.get("has_sitemap", False),
-                result.get("structured_score", 0),
-                json.dumps(result, indent=2),
-                config.ANALYZE_MODEL,
-            ),
+    conn.execute(
+        db.upsert(
+            site_analyses,
+            {
+                "domain": domain,
+                "urls_found": urls_found,
+                "sample_urls": json.dumps(sample_urls),
+                "root_page_title": root_title,
+                "has_sitemap": result.get("has_sitemap", False),
+                "structured_score": result.get("structured_score", 0),
+                "recommendation": json.dumps(result, indent=2),
+                "llm_model": config.ANALYZE_MODEL,
+                "analyzed_at": func.now(),
+            },
+            ["domain"],
         )
-        conn.commit()
+    )
+    conn.commit()
 
 
 def analyze_domains(conn, limit=None, min_urls=2):
@@ -379,15 +369,16 @@ def analyze_domains(conn, limit=None, min_urls=2):
 
 def show_results(conn, min_score=0):
     """Print analysis results."""
-    with conn.cursor() as cur:
-        cur.execute(
-            "SELECT domain, urls_found, root_page_title, has_sitemap, "
-            "structured_score, recommendation, analyzed_at "
-            "FROM site_analyses WHERE structured_score >= %s "
-            "ORDER BY structured_score DESC",
-            (min_score,),
+    rows = conn.execute(
+        select(
+            site_analyses.c.domain, site_analyses.c.urls_found,
+            site_analyses.c.root_page_title, site_analyses.c.has_sitemap,
+            site_analyses.c.structured_score, site_analyses.c.recommendation,
+            site_analyses.c.analyzed_at,
         )
-        rows = cur.fetchall()
+        .where(site_analyses.c.structured_score >= min_score)
+        .order_by(site_analyses.c.structured_score.desc())
+    ).mappings().fetchall()
 
     if not rows:
         print("No analyzed domains" + (f" with score >= {min_score}" if min_score else ""))
@@ -399,7 +390,7 @@ def show_results(conn, min_score=0):
         if r['root_page_title']:
             print(f"  title: {r['root_page_title']}")
         if r['has_sitemap']:
-            print(f"  has sitemap.xml")
+            print("  has sitemap.xml")
 
         rec = r["recommendation"]
         if rec:
