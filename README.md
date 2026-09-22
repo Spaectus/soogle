@@ -71,7 +71,7 @@ Both commands support a **model tier system** (haiku < sonnet < opus). The `--sc
 
 ### 4. Serve — Django web frontend
 
-The Django app reads directly from the MySQL database:
+The Django app reads directly from the database (MySQL or SQLite):
 
 - **Home page** — package count, video count, dialect breakdown, recently added packages
 - **Search** — full-text search with filters for dialect, source site, and category; sort by relevance, stars, update date, or name
@@ -111,7 +111,8 @@ soogle/
   daily.bash              Daily cron script (free scrapers + processing)
   weekly.bash             Weekly cron script (paid APIs + daily.bash)
    pyproject.toml        dependencies (requests, pymysql, beautifulsoup4, anthropic, django)
-  db/schema.sql           Full database schema and seed data
+  db/schema.sql           Full MySQL schema and seed data
+   db/schema.sqlite.sql    SQLite schema and seed data
   scrape/
     __main__.py           CLI entry point (python -m scrape <command>)
     config.py             DB connection, API keys, rate limits
@@ -155,12 +156,29 @@ uv run python -m scrape status
 
 - [mise](https://mise.jdx.dev) — dev tools (uv, ruff, prek) and task runner
 - Python 3.10+
-- MySQL / MariaDB
+- MySQL / MariaDB **or** SQLite (see below)
 - `mise install` (installs uv, ruff, prek + git hooks)
+
+### Database: MySQL or SQLite
+
+The engine is auto-detected: if `SOOGLE_DB_PASS` is set, the pipeline and web
+app use MySQL; otherwise they use a local SQLite file — no server, no
+password.  Force one explicitly with `SOOGLE_DB_ENGINE=mysql|sqlite`.
+
+For SQLite, apply the schema once:
+
+```bash
+sqlite3 soogle.db < db/schema.sqlite.sql
+```
+
+The scrapers' SQL is translated to SQLite at the cursor (`scrape/db.py`), so
+the same code runs against both backends.
 
 Environment variables:
 
-- `SOOGLE_DB_PASS` — MySQL password
+- `SOOGLE_DB_ENGINE` — `mysql` or `sqlite` (optional; auto-detected)
+- `SOOGLE_DB_PATH` — SQLite database file (default `soogle.db`)
+- `SOOGLE_DB_PASS` — MySQL password; its presence selects MySQL
 - `GITHUB_TOKEN` — GitHub API token (required for github scraper)
 - `SERPAPI_KEY` — SerpAPI key (required for weekly.bash: discovery + youtube)
 - `ANTHROPIC_API_KEY` — Anthropic API key (required for LLM review, analyze)
