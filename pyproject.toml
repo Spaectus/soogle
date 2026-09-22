@@ -16,6 +16,9 @@ dependencies = [
 dev = [
     "pytest>=7.0",
 ]
+dump = [
+    "pandas[parquet]>=2.0",
+]
 
 [tool.ruff]
 line-length = 180
