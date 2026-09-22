@@ -7,11 +7,10 @@ Usage:
     python -m scrape youtube [--playlists-only]
 """
 
+import logging
 import re
 import time
-import json
-import logging
-import pymysql
+
 from . import config, db
 
 log = logging.getLogger(__name__)
@@ -46,14 +45,14 @@ _PLAYLISTS = [
 
 # Map keywords in title/description to dialect
 _DIALECT_PATTERNS = [
-    (re.compile(r"\bpharo\b", re.I), "pharo"),
-    (re.compile(r"\bsqueak\b", re.I), "squeak"),
-    (re.compile(r"\bcuis\b", re.I), "cuis"),
-    (re.compile(r"\bgnu.?smalltalk\b", re.I), "gnu_smalltalk"),
-    (re.compile(r"\bgemstone\b", re.I), "gemstone"),
-    (re.compile(r"\bvisualworks\b", re.I), "visualworks"),
-    (re.compile(r"\bdolphin\b", re.I), "dolphin"),
-    (re.compile(r"\bva.?smalltalk\b|vast\b", re.I), "va_smalltalk"),
+    (re.compile(r"\bpharo\b", re.IGNORECASE), "pharo"),
+    (re.compile(r"\bsqueak\b", re.IGNORECASE), "squeak"),
+    (re.compile(r"\bcuis\b", re.IGNORECASE), "cuis"),
+    (re.compile(r"\bgnu.?smalltalk\b", re.IGNORECASE), "gnu_smalltalk"),
+    (re.compile(r"\bgemstone\b", re.IGNORECASE), "gemstone"),
+    (re.compile(r"\bvisualworks\b", re.IGNORECASE), "visualworks"),
+    (re.compile(r"\bdolphin\b", re.IGNORECASE), "dolphin"),
+    (re.compile(r"\bva.?smalltalk\b|vast\b", re.IGNORECASE), "va_smalltalk"),
 ]
 
 
@@ -249,7 +248,7 @@ class YouTubeScraper:
                 )
                 self.conn.commit()
                 return cur.rowcount == 1  # 1 = insert, 2 = update
-            except pymysql.err.IntegrityError:
+            except db.IntegrityError:
                 self.conn.rollback()
                 return False
 
