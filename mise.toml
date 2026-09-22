@@ -3,6 +3,7 @@ min_version = "2024.9.5"
 [tools]
 uv = "latest"
 ruff = "latest"
+ty = "latest"
 prek = { version = "latest", postinstall = "prek install" }
 
 [tasks.install]
@@ -25,6 +26,10 @@ run = "uv run python tests/test_monticello.py"
 [tasks.lint]
 description = "Lint with ruff"
 run = "ruff check ."
+
+[tasks.ty]
+description = "Type check with ty"
+run = "ty check ."
 
 [tasks.hooks]
 description = "Run all git hooks"
