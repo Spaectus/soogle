@@ -23,10 +23,10 @@ jobs:
           SOOGLE_DB_ENGINE: sqlite
           SOOGLE_DB_PATH: soogle.db
           SERPAPI_KEY: ${{ secrets.SERPAPI_KEY }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          BRAVE_API_KEY: ${{ secrets.BRAVE_API_KEY }}
-          BING_API_KEY: ${{ secrets.BING_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
 
       - name: Dump DB to parquet
         run: uv run --group dump python scripts/dump_parquet.py soogle.db dist
