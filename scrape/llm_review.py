@@ -28,6 +28,7 @@ import requests
 from pydantic import BaseModel
 from sqlalchemy import or_, select
 from sqlalchemy.engine import Connection, RowMapping
+from tqdm import tqdm
 
 from . import config, db
 from .models import is_upgrade
@@ -202,7 +203,7 @@ def fetch_readmes(conn: Connection, limit: int | None = None) -> int:
     fetched = 0
     errors = 0
 
-    for row in rows:
+    for row in tqdm(rows, desc="readmes", unit="pkg"):
         pkg_id = row["id"]
         full_name = row["external_id"]
         try:
@@ -255,9 +256,6 @@ def fetch_readmes(conn: Connection, limit: int | None = None) -> int:
             )
             conn.commit()
             fetched += 1
-
-            if fetched % 100 == 0:
-                log.info("Fetched %d/%d READMEs (%d errors)", fetched, len(rows), errors)
 
         except Exception as e:
             log.warning("Error fetching README for %s: %s", full_name, e)
@@ -379,7 +377,7 @@ def review_packages(conn: Connection, limit: int | None = None,
 
     # Process in batches
     routed = 0
-    for i in range(0, len(rows), BATCH_SIZE):
+    for i in tqdm(range(0, len(rows), BATCH_SIZE), desc="llm-review", unit="batch"):
         batch = rows[i:i + BATCH_SIZE]
         try:
             results = _call_llm(client, _package_items(batch), model,
@@ -456,10 +454,6 @@ def review_packages(conn: Connection, limit: int | None = None,
                     kept += 1
             conn.commit()
             reviewed += len(batch)
-
-            if reviewed % 100 == 0:
-                log.info("Progress: reviewed=%d kept=%d blocked=%d routed=%d",
-                         reviewed, kept, blocked, routed)
 
         except Exception as e:
             log.error("LLM batch error at offset %d: %s", i, e)
@@ -618,7 +612,7 @@ def review_videos(conn: Connection, limit: int | None = None,
             )
         return routing_job_id, web_site_id
 
-    for i in range(0, len(rows), VIDEO_BATCH_SIZE):
+    for i in tqdm(range(0, len(rows), VIDEO_BATCH_SIZE), desc="video-review", unit="batch"):
         batch = rows[i:i + VIDEO_BATCH_SIZE]
         try:
             results = _call_llm(client, _video_items(batch), model,
@@ -689,10 +683,6 @@ def review_videos(conn: Connection, limit: int | None = None,
                     kept += 1
             conn.commit()
             reviewed += len(batch)
-
-            if reviewed % 100 == 0:
-                log.info("Video progress: reviewed=%d kept=%d blocked=%d routed=%d",
-                         reviewed, kept, blocked, routed)
 
         except Exception as e:
             log.error("Video LLM batch error at offset %d: %s", i, e)

@@ -14,6 +14,7 @@ import re
 from datetime import datetime
 
 from sqlalchemy import func, select
+from tqdm import tqdm
 
 from . import config, db
 from .schema import (
@@ -417,11 +418,13 @@ def process_all(conn):
     """Process all pending rows in batches."""
     total_processed = 0
     total_errors = 0
-    while True:
-        result = process_batch(conn)
-        total_processed += result["processed"]
-        total_errors += result["errors"]
-        if result["processed"] == 0 and result["errors"] == 0:
-            break
+    with tqdm(desc="process", unit="pkg", total=None) as pbar:
+        while True:
+            result = process_batch(conn)
+            total_processed += result["processed"]
+            total_errors += result["errors"]
+            pbar.update(result["processed"])
+            if result["processed"] == 0 and result["errors"] == 0:
+                break
     log.info("All done: processed=%d errors=%d", total_processed, total_errors)
     return {"processed": total_processed, "errors": total_errors}

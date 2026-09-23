@@ -20,6 +20,7 @@ from email.message import EmailMessage
 from urllib.parse import urlparse
 
 from sqlalchemy import select
+from tqdm import tqdm
 
 from . import config, db
 from .schema import packages, scrape_raw, site_submissions
@@ -136,7 +137,7 @@ def process_submissions(conn, limit=None):
     added = rejected = skipped = errors = 0
 
     try:
-        for row in pending:
+        for row in (sub_bar := tqdm(pending, desc="submissions", unit="sub")):
             sub_id = row["id"]
             url = (row["url"] or "").strip().split("#")[0]
             log.info("Submission %d: %s", sub_id, url)
@@ -146,12 +147,14 @@ def process_submissions(conn, limit=None):
                 log.warning("  reject: %s", reason)
                 _mark(conn, sub_id, "rejected")
                 rejected += 1
+                sub_bar.set_postfix(added=added, rejected=rejected, skipped=skipped, errors=errors)
                 continue
 
             if _already_known(conn, url):
                 log.info("  skip: already known")
                 _mark(conn, sub_id, "added")
                 skipped += 1
+                sub_bar.set_postfix(added=added, rejected=rejected, skipped=skipped, errors=errors)
                 continue
 
             try:
@@ -159,6 +162,7 @@ def process_submissions(conn, limit=None):
             except Exception as e:
                 log.error("  extract failed: %s", e)
                 errors += 1
+                sub_bar.set_postfix(added=added, rejected=rejected, skipped=skipped, errors=errors)
                 # Leave as pending so a future run can retry.
                 continue
 
@@ -201,6 +205,7 @@ def process_submissions(conn, limit=None):
             except Exception as e:
                 log.error("  save failed: %s", e)
                 errors += 1
+            sub_bar.set_postfix(added=added, rejected=rejected, skipped=skipped, errors=errors)
     finally:
         db.finish_scrape_job(conn, job_id, len(pending), added, errors)
 
