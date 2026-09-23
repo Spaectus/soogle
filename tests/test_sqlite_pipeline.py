@@ -37,10 +37,7 @@ def check(condition, label):
 check(config.DB_ENGINE == "sqlite", "engine auto-detects to sqlite without MySQL vars")
 check(config.DB_PATH == os.environ["SOOGLE_DB_PATH"], "DB_PATH read from env")
 
-
-schema = os.path.join(os.path.dirname(__file__), "..", "db", "schema.sqlite.sql")
-with open(schema) as f:
-    sqlite3.connect(config.DB_PATH).executescript(f.read())
+# The schema is applied automatically by scrape/db.py on an empty DB.
 
 with db.connection() as conn:
     site_id = db.get_site_id(conn, "github")
