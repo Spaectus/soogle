@@ -17,6 +17,7 @@ from urllib.parse import urlparse
 import requests
 from bs4 import BeautifulSoup
 from sqlalchemy import func, select
+from tqdm import tqdm
 
 from . import config, db
 from .schema import scrape_raw, site_analyses
@@ -331,7 +332,7 @@ def analyze_domains(conn, limit=None, min_urls=2):
     promising = 0
     errors = 0
 
-    for domain, info in sorted_domains:
+    for domain, info in tqdm(sorted_domains, desc="analyze", unit="domain"):
         prefix = info.get("prefix", "/")
         prefix_msg = f" prefix={prefix}" if prefix != "/" else ""
         log.info("Analyzing %s (%d URLs found%s) ...", domain, info["count"], prefix_msg)

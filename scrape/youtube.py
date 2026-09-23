@@ -11,6 +11,8 @@ import logging
 import re
 import time
 
+from tqdm import tqdm
+
 from . import config, db
 from .schema import videos
 
@@ -364,8 +366,8 @@ class YouTubeScraper:
 
         # 2. Search queries
         seen_ids = set()
-        for qi, query in enumerate(_VIDEO_QUERIES, 1):
-            log.info("YouTube search [%d/%d]: %s", qi, len(_VIDEO_QUERIES), query)
+        for query in (query_bar := tqdm(_VIDEO_QUERIES, desc="youtube", unit="query")):
+            log.info("YouTube search: %s", query)
             try:
                 results = self._serpapi_youtube_search(query, max_pages=3)
                 new = 0
@@ -378,11 +380,13 @@ class YouTubeScraper:
                     except Exception as e:
                         log.error("  video save failed: %s", e)
                         errors += 1
+                query_bar.set_postfix(saved=saved, errors=errors)
                 log.info("  results: %d found, %d new", len(results), new)
                 time.sleep(2)
             except Exception as e:
                 log.error("YouTube search %r failed: %s", query, e)
                 errors += 1
+                query_bar.set_postfix(saved=saved, errors=errors)
 
         log.info("YouTube done: found=%d saved=%d errors=%d", found, saved, errors)
         return {"found": found, "saved": saved, "errors": errors}
