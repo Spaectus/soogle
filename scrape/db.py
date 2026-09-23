@@ -10,11 +10,13 @@ below are the only place that knows about MySQL vs SQLite.
 import hashlib
 import json
 from contextlib import contextmanager
+from pathlib import Path
 
 from sqlalchemy import create_engine, event, func, select
 from sqlalchemy.dialects import mysql as mysql_dialect
 from sqlalchemy.dialects import sqlite as sqlite_dialect
 from sqlalchemy.exc import IntegrityError  # noqa: F401  (re-exported for callers)
+from sqlalchemy import inspect
 
 from . import config
 from .schema import blocklist, packages, scrape_jobs, scrape_raw, sites
@@ -27,6 +29,13 @@ if config.DB_ENGINE == "sqlite":
     @event.listens_for(engine, "connect")
     def _enable_foreign_keys(dbapi_conn, connection_record):
         dbapi_conn.execute("PRAGMA foreign_keys = ON")
+
+    # A fresh SQLite file has no tables; apply the schema (tables + seed data)
+    # once so a new checkout or CI run works without a manual step.
+    if not inspect(engine).get_table_names():
+        schema = Path(__file__).resolve().parent.parent / "db" / "schema.sqlite.sql"
+        with engine.raw_connection() as conn:
+            conn.executescript(schema.read_text())
 else:
     engine = create_engine(
         f"mysql+pymysql://{config.DB_USER}:{config.DB_PASS}"
