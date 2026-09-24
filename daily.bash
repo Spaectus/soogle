@@ -66,19 +66,19 @@ $PYTHON custom all || phase_failed "custom all"
 log "Process scrape_raw into packages"
 $PYTHON process || phase_failed process
 
-log "Analyze new domains (requires ANTHROPIC_API_KEY)"
-if [ -n "${ANTHROPIC_API_KEY:-}" ]; then
+log "Analyze new domains (requires ANTHROPIC_API_KEY or OPENAI_BASE_URL)"
+if [ -n "${ANTHROPIC_API_KEY:-}" ] || [ -n "${OPENAI_BASE_URL:-}" ]; then
     $PYTHON analyze || phase_failed analyze
 else
-    log "SKIP: ANTHROPIC_API_KEY not set, skipping analyze"
+    log "SKIP: no LLM backend configured, skipping analyze"
 fi
 
-log "LLM review of new packages (requires ANTHROPIC_API_KEY)"
-if [ -n "${ANTHROPIC_API_KEY:-}" ]; then
-    $PYTHON llm-review || phase_failed llm-review
+log "LLM review of new packages (requires ANTHROPIC_API_KEY or OPENAI_BASE_URL)"
+if [ -n "${ANTHROPIC_API_KEY:-}" ] || [ -n "${OPENAI_BASE_URL:-}" ]; then
+$PYTHON llm-review || phase_failed llm-review
     $PYTHON video-review || phase_failed video-review
 else
-    log "SKIP: ANTHROPIC_API_KEY not set, skipping llm-review / video-review"
+    log "SKIP: no LLM backend configured, skipping llm-review / video-review"
 fi
 
 log "Status"
