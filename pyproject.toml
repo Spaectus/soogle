@@ -23,6 +23,9 @@ dev = [
 dump = [
     "pandas[parquet]>=2.0",
 ]
+mcp = [
+    "mcp>=2.2.0",
+]
 
 [tool.ruff]
 line-length = 180

@@ -65,3 +65,7 @@ Thumbs.db
 # and it holds the database password and every API key.
 .env.*
 !.env.example
+
+# Local SQLite database (auto-created by scrape/db.py)
+soogle.db
+data/
