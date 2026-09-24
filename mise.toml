@@ -18,9 +18,13 @@ run = "uv run python -m scrape"
 description = "Run the Django web app"
 run = "uv run python web/manage.py runserver"
 
+[tasks.mcp]
+description = "Run the MCP server (stdio)"
+run = "uv run --group mcp python -m mcp_server"
+
 [tasks.test]
 description = "Run tests"
-run = "uv run python tests/test_monticello.py"
+run = "uv run --group mcp python tests/test_monticello.py && uv run --group mcp python tests/test_mcp_server.py"
 
 [tasks.lint]
 description = "Lint with ruff"
