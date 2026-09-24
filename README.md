@@ -80,6 +80,59 @@ The Django app reads directly from the database (MySQL or SQLite):
 - **Sources** — lists all indexed sites with package counts
 - **Submit** — users can submit new Smalltalk URLs for indexing
 
+### 5. MCP server
+
+A standalone MCP server (`mcp_server/`) exposes the same search service to AI
+agents. It reads the same database directly — no HTTP, no Django dependency.
+The `mcp` SDK lives in its own uv dependency group, so `uv sync` alone doesn't
+pull it in; install with `uv sync --group mcp`. Tools:
+
+- `search_packages` — search with dialect/site/category filters and sorting
+- `get_package` — package detail with categories, classes, and method list
+- `get_method` — a single method's source code
+- `list_sources` — active sites with package counts
+- `search_videos` — video search with dialect filter and sorting
+
+Run it locally over stdio (`mise run mcp`) and register it in your MCP client
+(e.g. Claude Code, opencode):
+
+```json
+{
+  "mcpServers": {
+    "soogle": {
+      "command": "uv",
+      "args": ["run", "--group", "mcp", "python", "-m", "mcp_server"],
+      "cwd": "/path/to/soogle"
+    }
+  }
+}
+```
+
+Or run it in a container:
+
+```bash
+docker compose up -d --build   # serves the site and /mcp on :8000
+```
+
+The compose mounts `./data` as the SQLite database directory. For MySQL,
+override the `SOOGLE_DB_*` environment variables instead. The `Dockerfile`
+builds the Django app under uvicorn (ASGI), which serves both the site and
+the `/mcp` endpoint.
+
+### Serving /mcp from Django
+
+Django can also serve the MCP endpoint itself at `/mcp`, by wrapping the MCP
+Starlette app in the ASGI application (`web/soogle_web/asgi.py`). This
+requires running Django under an ASGI server (uvicorn/gunicorn) instead of
+mod_wsgi, and the `mcp` uv group:
+
+```bash
+uv run --group mcp uvicorn soogle_web.asgi:application --port 8000
+```
+
+The MCP app's lifespan (its session manager) is run from Django's own
+lifespan handler, since uvicorn only runs the top-level app's lifespan.
+
 ## Daily and weekly updates
 
 ### daily.bash
@@ -133,6 +186,7 @@ soogle/
       views.py            View handlers (search, detail, videos, sources, SEO)
       urls.py             URL routing
       templates/search/   HTML templates (base, index, results, detail, videos, etc.)
+  mcp_server/             MCP server (stdio) exposing the same search service
   www/                    Static files (CSS, images)
 ```
 
@@ -203,6 +257,9 @@ uv run python -m scrape llm-review --model claude-haiku-4-5-20251001 --scope unr
 
 # Run the web server
 mise run server         # uv run python web/manage.py runserver
+
+# Run the MCP server (stdio)
+mise run mcp            # uv run --group mcp python -m mcp_server
 
 # Tests and lint
 mise run test
