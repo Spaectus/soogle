@@ -68,6 +68,37 @@ def insert_ignore(table, values, conflict_cols):
     return mysql_dialect.insert(table).values(**values).prefix_with("IGNORE")
 
 
+# Sites are seeded here, not in the schema files: new scrapers add sites
+# after a DB already exists (the release DB is restored, not recreated), so
+# the seed must be re-applied idempotently on every startup.
+_SITES = [
+    ("github", "GitHub", "https://github.com", "git_host", "github_api"),
+    ("smalltalkhub", "SmalltalkHub", "http://smalltalkhub.com", "archive", "http_crawl"),
+    ("squeaksource", "SqueakSource", "http://squeaksource.com", "archive", "http_crawl"),
+    ("squeaksource3", "SqueakSource3", "http://ss3.gemstone.com", "archive", "http_crawl"),
+    ("squeakmap", "SqueakMap", "http://map.squeak.org", "catalog", "http_crawl"),
+    ("gitlab", "GitLab", "https://gitlab.com", "git_host", "gitlab_api"),
+    ("sourceforge", "SourceForge", "https://sourceforge.net", "archive", "http_crawl"),
+    ("rosettacode", "Rosetta Code", "https://rosettacode.org", "web", "http_crawl"),
+    ("vskb", "VS Knowledge Base", "https://vs-kb.archiv.apis.de", "archive", "http_crawl"),
+    ("web_discovered", "Web Discovered", "", "web", "discovery"),
+    ("lukas_renggli", "Lukas Renggli", "https://source.lukas-renggli.ch", "archive", "http_crawl"),
+    ("launchpad", "Launchpad", "https://code.launchpad.net", "git_host", "http_crawl"),
+    ("squeaktrunk", "Squeak Trunk", "https://source.squeak.org", "archive", "http_crawl"),
+]
+
+if "sites" in inspect(engine).get_table_names():
+    with engine.begin() as conn:
+        for name, display, url, stype, method in _SITES:
+            conn.execute(insert_ignore(sites, {
+                "name": name,
+                "display_name": display,
+                "base_url": url,
+                "site_type": stype,
+                "scrape_method": method,
+            }, ["name"]))
+
+
 @contextmanager
 def connection():
     with engine.connect() as conn:

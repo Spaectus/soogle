@@ -303,21 +303,6 @@ CREATE TABLE IF NOT EXISTS site_submissions (
 ) ENGINE=InnoDB;
 
 -- ---------------------------------------------------------------------------
--- Seed data: sites
--- ---------------------------------------------------------------------------
-INSERT INTO sites (name, display_name, base_url, site_type, scrape_method) VALUES
-    ('github',       'GitHub',           'https://github.com',              'git_host', 'github_api'),
-    ('smalltalkhub', 'SmalltalkHub',     'http://smalltalkhub.com',         'archive',  'http_crawl'),
-    ('squeaksource', 'SqueakSource',     'http://squeaksource.com',         'archive',  'http_crawl'),
-    ('squeaksource3','SqueakSource3',    'http://ss3.gemstone.com',         'archive',  'http_crawl'),
-    ('squeakmap',    'SqueakMap',        'http://map.squeak.org',           'catalog',  'http_crawl'),
-    ('gitlab',       'GitLab',           'https://gitlab.com',              'git_host', 'gitlab_api'),
-    ('sourceforge',  'SourceForge',      'https://sourceforge.net',         'archive',  'http_crawl'),
-    ('rosettacode',  'Rosetta Code',     'https://rosettacode.org',         'web',      'http_crawl'),
-    ('vskb',          'VS Knowledge Base','https://vs-kb.archiv.apis.de',    'archive',  'http_crawl'),
-    ('web_discovered','Web Discovered',   '',                                'web',      'discovery');
-
--- ---------------------------------------------------------------------------
 -- Seed data: categories (from feasibility study taxonomy)
 -- ---------------------------------------------------------------------------
 INSERT INTO categories (name, display_name, sort_order) VALUES
