@@ -65,19 +65,19 @@ $PYTHON custom all || { log "WARN: custom all failed"; fail=1; }
 log "Process scrape_raw into packages"
 $PYTHON process || { log "WARN: process failed"; fail=1; }
 
-log "Analyze new domains (requires ANTHROPIC_API_KEY)"
-if [ -n "${ANTHROPIC_API_KEY:-}" ]; then
+log "Analyze new domains (requires ANTHROPIC_API_KEY or OPENAI_BASE_URL)"
+if [ -n "${ANTHROPIC_API_KEY:-}" ] || [ -n "${OPENAI_BASE_URL:-}" ]; then
     $PYTHON analyze || { log "WARN: analyze failed"; fail=1; }
 else
-    log "SKIP: ANTHROPIC_API_KEY not set, skipping analyze"
+    log "SKIP: no LLM backend configured, skipping analyze"
 fi
 
-log "LLM review of new packages (requires ANTHROPIC_API_KEY)"
-if [ -n "${ANTHROPIC_API_KEY:-}" ]; then
+log "LLM review of new packages (requires ANTHROPIC_API_KEY or OPENAI_BASE_URL)"
+if [ -n "${ANTHROPIC_API_KEY:-}" ] || [ -n "${OPENAI_BASE_URL:-}" ]; then
     $PYTHON llm-review || { log "WARN: llm-review failed"; fail=1; }
     $PYTHON video-review || { log "WARN: video-review failed"; fail=1; }
 else
-    log "SKIP: ANTHROPIC_API_KEY not set, skipping llm-review / video-review"
+    log "SKIP: no LLM backend configured, skipping llm-review / video-review"
 fi
 
 log "Status"
