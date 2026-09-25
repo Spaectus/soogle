@@ -129,6 +129,7 @@ CREATE TABLE packages (
     -- Scrape tracking
     last_scraped_at     TEXT,
     scrape_checksum     TEXT,
+    llm_review          TEXT,                              -- model that reviewed, NULL = unreviewed
 
     -- Row timestamps
     created_at          TEXT NOT NULL DEFAULT (datetime('now')),
