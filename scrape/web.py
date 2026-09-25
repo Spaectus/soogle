@@ -969,7 +969,9 @@ class DiscoveryScraper(BaseScraper):
 SCRAPERS = {
     "squeaksource": SqueakSourceScraper,
     "smalltalkhub": SmalltalkHubScraper,
-    "rosettacode": RosettaCodeScraper,
+    # rosettacode excluded: Miraheze serves a JS anti-bot challenge to every
+    # non-browser client (403 on all endpoints), so it fails every run.
+    # Re-add RosettaCodeScraper if the block is lifted.
     "vskb": VSKBScraper,
 }
 
