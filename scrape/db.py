@@ -98,6 +98,14 @@ if "sites" in inspect(engine).get_table_names():
                 "scrape_method": method,
             }, ["name"]))
 
+# Schema drift: columns added after a DB was created (the release DB is
+# restored, not recreated). Guard on the column's absence.
+if "packages" in inspect(engine).get_table_names():
+    cols = {c["name"] for c in inspect(engine).get_columns("packages")}
+    if "llm_review" not in cols:
+        with engine.begin() as conn:
+            conn.exec_driver_sql("ALTER TABLE packages ADD COLUMN llm_review VARCHAR(100) NULL")
+
 
 @contextmanager
 def connection():
