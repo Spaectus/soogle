@@ -24,10 +24,13 @@ import time
 from typing import Any, Literal
 from urllib.parse import parse_qs, urlparse
 
+import anthropic
+import openai
 import requests
 from pydantic import BaseModel
 from sqlalchemy import or_, select
 from sqlalchemy.engine import Connection, RowMapping
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_random_exponential
 from tqdm import tqdm
 
 from . import config, db
@@ -265,6 +268,22 @@ def fetch_readmes(conn: Connection, limit: int | None = None) -> int:
     return fetched
 
 
+# Transient API errors worth retrying (both SDKs share the same hierarchy).
+# Deterministic errors (BadRequestError, auth, validation) are not retried.
+_TRANSIENT = (
+    anthropic.APIConnectionError, anthropic.APITimeoutError,
+    anthropic.RateLimitError, anthropic.InternalServerError,
+    openai.APIConnectionError, openai.APITimeoutError,
+    openai.RateLimitError, openai.InternalServerError,
+)
+
+
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_random_exponential(multiplier=1, max=30),
+    retry=retry_if_exception_type(_TRANSIENT),
+    reraise=True,
+)
 def _call_llm(client: Any, items: list[dict], model: str,
               prompt: str, response_model: type[BaseModel],
               max_tokens: int) -> list[dict]:
