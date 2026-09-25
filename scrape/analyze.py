@@ -291,7 +291,7 @@ def _ask_llm(client, domain, sample_urls, probe):
     try:
         resp = client.create(
             model=model,
-            max_tokens=1024,
+            max_tokens=32768,
             messages=[
                 {"role": "system", "content": _SYSTEM_PROMPT},
                 {"role": "user", "content": "\n".join(user_parts)},
