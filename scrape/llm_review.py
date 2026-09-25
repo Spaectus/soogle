@@ -400,7 +400,7 @@ def review_packages(conn: Connection, limit: int | None = None,
         batch = rows[i:i + BATCH_SIZE]
         try:
             results = _call_llm(client, _package_items(batch), model,
-                                SYSTEM_PROMPT, VerdictBatch, 2048)
+                                SYSTEM_PROMPT, VerdictBatch, 32768)
             for item in results:
                 pkg_id = item["id"]
                 verdict = item["verdict"]
@@ -635,7 +635,7 @@ def review_videos(conn: Connection, limit: int | None = None,
         batch = rows[i:i + VIDEO_BATCH_SIZE]
         try:
             results = _call_llm(client, _video_items(batch), model,
-                                VIDEO_SYSTEM_PROMPT, VideoVerdictBatch, 4096)
+                                VIDEO_SYSTEM_PROMPT, VideoVerdictBatch, 32768)
             for item in results:
                 vid_id = item["id"]
                 verdict = item["verdict"]
