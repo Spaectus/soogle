@@ -51,18 +51,17 @@ log "=== Starting weekly scrape ==="
 log "User submissions"
 $PYTHON submissions || { log "WARN: submissions failed"; fail=1; }
 
-# --- SERPAPI-based scrapers ---
+# --- SERPAPI-based scrapers (optional: skip if no key) ---
 
 if [ -z "${SERPAPI_KEY:-}" ]; then
-    log "ERROR: SERPAPI_KEY not set. Export it first."
-    exit 1
+    log "SKIP: SERPAPI_KEY not set, skipping discover serpapi / youtube"
+else
+    log "Web discovery (serpapi)"
+    $PYTHON discover serpapi || { log "WARN: discover serpapi failed"; fail=1; }
+
+    log "YouTube videos"
+    $PYTHON youtube || { log "WARN: youtube failed"; fail=1; }
 fi
-
-log "Web discovery (serpapi)"
-$PYTHON discover serpapi || { log "WARN: discover serpapi failed"; fail=1; }
-
-log "YouTube videos"
-$PYTHON youtube || { log "WARN: youtube failed"; fail=1; }
 
 # --- Run the full daily pipeline (free scrapers + processing) ---
 # Don't `exec` here: we need daily.bash's exit status to combine with the
