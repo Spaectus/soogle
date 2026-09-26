@@ -46,4 +46,7 @@ jobs:
           tag_name: ${{ steps.tag.outputs.tag }}
           name: Database dump ${{ steps.tag.outputs.tag }}
           body: Weekly SQLite dump as one parquet file per table.
-          files: dist/*.parquet soogle.db
+          files: |
+            dist/*.parquet
+            soogle.db
+          fail_on_unmatched_files: true
