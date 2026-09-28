@@ -10,12 +10,9 @@ cd "$(dirname "$0")"
 # Load .env (DB password, API keys). weekly.bash does this too and exports
 # through to here, but daily.bash is also run on its own, and then nothing
 # else would supply ANTHROPIC_API_KEY - the LLM phases would silently skip.
-if [ -f .env ]; then
-    set -a
-    # shellcheck disable=SC1091
-    source .env
-    set +a
-fi
+# An already-exported value wins over .env; see load_env.bash for why.
+# shellcheck disable=SC1091
+source ./load_env.bash
 
 # Interpreter.  Absolute on purpose.  This was a bare `python`, which resolved
 # through ~/bin/python -- a symlink carried in the avwohl/bin repo, and ~/bin is
@@ -46,50 +43,55 @@ if ! deps=$("$PYTHON_BIN" -c 'import requests, pymysql, bs4, anthropic' 2>&1); t
     exit 1
 fi
 
-# Track whether any phase failed.  Phases keep running on failure (one flaky
+# Track which phases failed.  Phases keep running on failure (one flaky
 # scraper shouldn't abort the whole pipeline) but we exit non-zero at the end
 # so the caller (periodic.sh) reports the run as FAILED instead of "ok".
-fail=0
+# The last line names them: periodic.sh mails only the last 200 lines of
+# output, and on 2026-09-20 and 09-27 the WARN line and the GitHub 401 behind
+# it came ~440 lines before the end, so the FAIL mail showed neither.
+failed=()
+phase_failed() { log "WARN: $1 failed"; failed+=("$1"); }
 
 log "=== Starting daily scrape ==="
 
 # --- Free scrapers ---
 
 log "GitHub (incremental)"
-$PYTHON github --incremental || { log "WARN: github failed"; fail=1; }
+$PYTHON github --incremental || phase_failed github
 
 log "Web sources (squeaksource, smalltalkhub, rosettacode, vskb)"
-$PYTHON web all || { log "WARN: web all failed"; fail=1; }
+$PYTHON web all || phase_failed "web all"
 
 log "Custom scrapers (squeakmap, sourceforge, launchpad, lukas_renggli)"
-$PYTHON custom all || { log "WARN: custom all failed"; fail=1; }
+$PYTHON custom all || phase_failed "custom all"
 
 # --- Processing phases ---
 
 log "Process scrape_raw into packages"
-$PYTHON process || { log "WARN: process failed"; fail=1; }
+$PYTHON process || phase_failed process
 
 log "Analyze new domains (requires ANTHROPIC_API_KEY)"
 if [ -n "${ANTHROPIC_API_KEY:-}" ]; then
-    $PYTHON analyze || { log "WARN: analyze failed"; fail=1; }
+    $PYTHON analyze || phase_failed analyze
 else
     log "SKIP: ANTHROPIC_API_KEY not set, skipping analyze"
 fi
 
 log "LLM review of new packages (requires ANTHROPIC_API_KEY)"
 if [ -n "${ANTHROPIC_API_KEY:-}" ]; then
-    $PYTHON llm-review || { log "WARN: llm-review failed"; fail=1; }
-    $PYTHON video-review || { log "WARN: video-review failed"; fail=1; }
+    $PYTHON llm-review || phase_failed llm-review
+    $PYTHON video-review || phase_failed video-review
 else
     log "SKIP: ANTHROPIC_API_KEY not set, skipping llm-review / video-review"
 fi
 
 log "Status"
-$PYTHON status || { log "WARN: status failed"; fail=1; }
+$PYTHON status || phase_failed status
 
-if [ "$fail" -eq 0 ]; then
+if [ ${#failed[@]} -eq 0 ]; then
     log "=== Daily scrape complete ==="
-else
-    log "=== Daily scrape complete WITH FAILURES (see WARN lines above) ==="
+    exit 0
 fi
-exit "$fail"
+list=$(printf '%s, ' "${failed[@]}")
+log "=== Daily scrape complete WITH FAILURES in: ${list%, } (see WARN lines above) ==="
+exit 1
