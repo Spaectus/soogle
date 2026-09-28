@@ -234,7 +234,6 @@ def search_videos(
     return _rows(stmt.limit(limit))
 
 
-
 def main():
     asyncio.run(server.run_stdio_async())
 

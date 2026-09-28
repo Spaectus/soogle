@@ -16,9 +16,9 @@ os.environ["SOOGLE_DB_PATH"] = os.path.join(tmpdir, "test.db")
 
 from sqlalchemy import select
 
-from mcp_server import get_method, get_package, list_sources, search_packages, search_videos, submit_site
+from mcp_server import get_method, get_package, list_sources, search_packages, search_videos
 from scrape.db import engine
-from scrape.schema import package_classes, package_methods, packages, site_submissions, sites
+from scrape.schema import package_classes, package_methods, packages, sites
 
 results = []
 
@@ -61,12 +61,6 @@ check("source_code" not in detail["methods"][0], "method source is not dumped in
 method = get_method(pkg_id, "WAComponent", "renderOn:")
 check(method and "html text: 'hi'" in method["source_code"], "get_method returns the source code")
 check(get_method(pkg_id, "WAComponent", "nope") is None, "get_method returns None for a missing selector")
-
-sub = submit_site("https://example.com/smalltalk", "found it")
-with engine.connect() as conn:
-    row = conn.execute(select(site_submissions).where(site_submissions.c.id == sub["id"])).mappings().fetchone()
-check(row and row["url"] == "https://example.com/smalltalk" and row["status"] == "pending",
-      "submit_site inserts a pending submission")
 
 check(search_videos() == [], "search_videos runs on an empty table")
 
