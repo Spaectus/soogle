@@ -137,7 +137,7 @@ soogle/
 ## CLI reference
 
 ```
-python -m scrape github [--incremental]
+python -m scrape github [--incremental | --since YYYY-MM-DD]
 python -m scrape web <source>                    # squeaksource | smalltalkhub | rosettacode | vskb | all
 python -m scrape custom <source>                 # squeakmap | lukas_renggli | sourceforge | launchpad | all
 python -m scrape youtube [--playlists-only]

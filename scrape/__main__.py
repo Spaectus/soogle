@@ -1,7 +1,7 @@
 """Soogle scrape CLI.
 
 Usage:
-    python -m scrape github [--incremental]
+    python -m scrape github [--incremental | --since YYYY-MM-DD]
     python -m scrape web <source>          # squeaksource | smalltalkhub | rosettacode | vskb | all
     python -m scrape discover <engine>     # brave | serpapi | bing | ddg
     python -m scrape youtube [--playlists-only]
@@ -18,6 +18,7 @@ Usage:
 import sys
 import argparse
 import logging
+from datetime import datetime
 from . import db
 
 logging.basicConfig(
@@ -32,7 +33,7 @@ def cmd_github(args):
     from .github import GitHubScraper
     with db.connection() as conn:
         scraper = GitHubScraper(conn)
-        result = scraper.run(incremental=args.incremental)
+        result = scraper.run(incremental=args.incremental, since=args.since)
     print(f"GitHub: found={result['found']} saved={result['saved']} errors={result['errors']}")
     if result["errors"]:
         sys.exit(1)
@@ -254,7 +255,10 @@ def main():
     sub = parser.add_subparsers(dest="command")
 
     gh = sub.add_parser("github", help="Scrape GitHub Smalltalk repos")
-    gh.add_argument("--incremental", action="store_true", help="Only repos updated in last 30 days")
+    gh_mode = gh.add_mutually_exclusive_group()
+    gh_mode.add_argument("--incremental", action="store_true", help="Only repos created in the last 30 days")
+    gh_mode.add_argument("--since", type=lambda s: datetime.strptime(s, "%Y-%m-%d"), metavar="YYYY-MM-DD",
+                         help="Only repos created on or after this date (recovers a gap longer than 30 days)")
 
     web = sub.add_parser("web", help="Scrape web sources")
     web.add_argument("source", choices=["squeaksource", "smalltalkhub", "rosettacode", "vskb", "all"],

@@ -68,30 +68,31 @@ looked at whether SqueakMap, SmalltalkHub, SourceForge, Launchpad or the
 GitHub scraper have identity or metadata bugs of their own kind.
 
 
-6. GitHub repos created 2026-06-15 .. 2026-08-06 were never scraped
----------------------------------------------------------------------
-Written 2026-09-28.
+6. GitHub repos created 2026-06-15 .. 2026-08-06 were never scraped -- done
+-----------------------------------------------------------------------------
+Written 2026-09-28, and done the same day.
 
 `github --incremental` searches `created:` over the last 30 days only
-(scrape/github.py:190-194) and ignores job history.  It got 401 on every run
-from 2026-06-21 (job 182) to 2026-09-06, because a dead GH_TOKEN in .env
-overrode the live one from ~/.bashrc, and it failed again on 09-20 and 09-27
-after the token was rotated a second time.  Until 161f45a those failures
-still reported "periodic: ok".  (That commit's message says the failures
-began "at least 2026-08-09" and that the dead .env line was gone; the first
-401 was 06-21, and a GH_TOKEN line was put back into .env a minute after the
+(scrape/github.py) and ignores job history.  It got 401 on every run from
+2026-06-21 (job 182) to 2026-09-06, because a dead GH_TOKEN in .env overrode
+the live one from ~/.bashrc, and it failed again on 09-20 and 09-27 after
+the token was rotated a second time.  Until 161f45a those failures still
+reported "periodic: ok".  (That commit's message says the failures began
+"at least 2026-08-09" and that the dead .env line was gone; the first 401
+was 06-21, and a GH_TOKEN line was put back into .env a minute after the
 fix.  daily.bash and weekly.bash now load .env through load_env.bash, where
 the login environment wins, so a stale .env copy can no longer do this.)
 
-Runs from 09-29 onward cover 2026-08-30 forward, and the 09-06 recovery run
-reached back to about 08-07.  That leaves a hole: GitHub search showed 207
-Smalltalk repos created 2026-06-15 .. 08-06, none of them in scrape_raw.
-Only a full crawl reaches them:
+That left a hole: 207 Smalltalk repos created 06-15 .. 08-06, none in
+scrape_raw.  `github --since YYYY-MM-DD` now searches from a given date, and
+job 355 (`--since 2026-06-15`) found 400, saved 278 with 0 errors.  159 of
+the 207 are stored now, plus 46 of the 64 created since 09-14; the rest were
+filtered as not Smalltalk.  process and llm-review ran after it: 106 new
+packages reviewed, 66 kept, 40 blocked.  Use --since again whenever the
+incremental run has been broken for more than 30 days.
 
-    /usr/bin/python3 -m scrape github        # no --incremental
-
-README.md:162 and notes.txt:18 also still call the variable GITHUB_TOKEN;
-the code reads GH_TOKEN (scrape/config.py:56).
+README.md:162 and notes.txt:18 still call the variable GITHUB_TOKEN; the code
+reads GH_TOKEN (scrape/config.py:56).
 
 
 7. Three weekly phases still cannot fail the run

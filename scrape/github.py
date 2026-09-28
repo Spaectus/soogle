@@ -171,23 +171,29 @@ class GitHubScraper:
 
     # ----- main entry point -----
 
-    def run(self, incremental=False):
+    def run(self, incremental=False, since=None):
         """Enumerate all Smalltalk repos on GitHub, write to scrape_raw.
 
-        If incremental, only fetch repos updated in the last 30 days.
+        If incremental, only fetch repos created in the last 30 days.  If
+        since (a datetime) is given, fetch repos created from that date on.
+        That recovers a gap after the incremental run has failed for more
+        than 30 days, without a full crawl back to 2008.
         """
         job_id = db.create_scrape_job(
             self.conn, self.site_id,
-            "incremental" if incremental else "full_crawl",
+            "incremental" if incremental or since else "full_crawl",
         )
-        log.info("Started scrape job %d (incremental=%s)", job_id, incremental)
+        log.info("Started scrape job %d (incremental=%s, since=%s)",
+                 job_id, incremental, since and since.date())
 
         found = 0
         saved = 0
         errors = 0
 
         try:
-            if incremental:
+            if since:
+                start = since
+            elif incremental:
                 start = datetime.utcnow() - timedelta(days=30)
             else:
                 start = datetime(2008, 1, 1)  # GitHub launched 2008
