@@ -61,9 +61,19 @@ def search_packages(
         .select_from(packages.join(sites, sites.c.id == packages.c.site_id))
     )
     conds = []
+    ranked = False
     if q:
-        like = f"%{q}%"
-        conds.append(or_(packages.c.name.like(like), packages.c.description.like(like)))
+        try:
+            from scrape.index import search as index_search
+            ids = index_search(q)
+        except ImportError:
+            ids = None
+        if ids is not None:
+            stmt = stmt.where(packages.c.id.in_(ids))
+            ranked = True
+        else:
+            like = f"%{q}%"
+            conds.append(or_(packages.c.name.like(like), packages.c.description.like(like)))
     if dialect:
         conds.append(packages.c.dialect == dialect)
     if site:
@@ -80,6 +90,11 @@ def search_packages(
         stmt = stmt.order_by(packages.c.source_pushed_at.desc())
     elif sort == "name":
         stmt = stmt.order_by(packages.c.name)
+    elif ranked:
+        rows = _rows(stmt)
+        order = {pk: pos for pos, pk in enumerate(ids)}
+        rows.sort(key=lambda r: order.get(r["id"], len(ids)))
+        return rows[:limit]
     else:
         stmt = stmt.order_by(packages.c.stars.desc(), packages.c.name)
     return _rows(stmt.limit(limit))

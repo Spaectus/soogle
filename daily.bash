@@ -66,6 +66,9 @@ $PYTHON custom all || phase_failed "custom all"
 log "Process scrape_raw into packages"
 $PYTHON process || phase_failed process
 
+log "Rebuild full-text search index"
+$PYTHON index || { log "WARN: index failed"; fail=1; }
+
 log "Analyze new domains (requires ANTHROPIC_API_KEY)"
 if [ -n "${ANTHROPIC_API_KEY:-}" ]; then
     $PYTHON analyze || phase_failed analyze

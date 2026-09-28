@@ -25,7 +25,7 @@ run = "uv run --group mcp python -m mcp_server"
 
 [tasks.test]
 description = "Run tests"
-run = "uv run --group mcp python tests/test_monticello.py && uv run --group mcp python tests/test_mcp_server.py"
+run = "uv run --group mcp python tests/test_monticello.py && uv run --group mcp python tests/test_mcp_server.py && uv run --group mcp python tests/test_search_index.py"
 
 [tasks.lint]
 description = "Lint with ruff"

@@ -80,6 +80,12 @@ The Django app reads directly from the database (MySQL or SQLite):
 - **Sources** — lists all indexed sites with package counts
 - **Submit** — users can submit new Smalltalk URLs for indexing
 
+Package search uses a [Tantivy](https://github.com/quickwit-oss/tantivy) full-text
+index (BM25 relevance ranking) instead of SQL `LIKE`. The index is a directory
+on disk (`SOOGLE_INDEX_PATH`, default `data/index`), rebuilt after processing
+with `uv run python -m scrape index` (part of `daily.bash`). When the index is
+missing, search falls back to a plain substring match.
+
 ### 5. MCP server
 
 A standalone MCP server (`mcp_server/`) exposes the same search service to AI
@@ -199,6 +205,7 @@ uv run python -m scrape custom <source>                 # squeakmap | lukas_reng
 uv run python -m scrape youtube [--playlists-only]
 uv run python -m scrape discover <engine>               # brave | serpapi | bing | ddg
 uv run python -m scrape process [--limit N]
+uv run python -m scrape index
 uv run python -m scrape analyze [--limit N] [--show] [--min-score 50]
 uv run python -m scrape llm-review [--model M] [--scope S] [--limit N] [--fetch-only] [--review-only]
 uv run python -m scrape video-review [--model M] [--scope S] [--limit N]

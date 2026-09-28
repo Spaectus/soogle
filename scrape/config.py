@@ -3,6 +3,7 @@
 import os
 from pathlib import Path
 
+
 def _load_env_file(path):
     """Read KEY=VALUE lines from .env into the environment.
 
@@ -24,8 +25,7 @@ def _load_env_file(path):
         line = line.strip()
         if not line or line.startswith("#"):
             continue
-        if line.startswith("export "):
-            line = line[len("export "):]
+        line = line.removeprefix("export ")
         key, sep, value = line.partition("=")
         if not sep:
             continue
@@ -56,6 +56,9 @@ if DB_ENGINE == "mysql" and not DB_PASS:
         "SOOGLE_DB_PASS is not set. Add it to the .env file in the repo root."
     )
 DB_NAME = os.environ.get("SOOGLE_DB_NAME", "soogle")
+
+# Tantivy full-text search index (directory on disk)
+INDEX_PATH = os.environ.get("SOOGLE_INDEX_PATH", "data/index")
 
 # GitHub
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")

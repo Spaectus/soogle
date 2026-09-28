@@ -3,16 +3,34 @@ import logging
 import requests
 from django.conf import settings
 from django.core.mail import send_mail
-from django.http import HttpResponse
-from django.shortcuts import render, get_object_or_404, redirect
 from django.core.paginator import Paginator
-from django.db.models import Q, Count
-from django.utils.html import escape as html_escape
-from .models import Package, Category, Site, PackageCategory, PackageClass, PackageMethod, SiteSubmission, Video
+from django.db.models import Case, Count, IntegerField, Q, When
+from django.http import HttpResponse
+from django.shortcuts import get_object_or_404, render
+
+from .models import Category, Package, PackageCategory, PackageClass, PackageMethod, Site, SiteSubmission, Video
 
 log = logging.getLogger(__name__)
 
 SITEMAP_CHUNK = 10000
+
+
+def _rank_case(ids):
+    """Order a queryset by the position of each id in *ids* (tantivy relevance)."""
+    return Case(
+        *[When(id=pk, then=pos) for pos, pk in enumerate(ids)],
+        default=len(ids),
+        output_field=IntegerField(),
+    )
+
+
+def _index_search(q):
+    """Full-text search via tantivy; returns ranked package ids, or None if unavailable."""
+    try:
+        from scrape.index import search as index_search
+        return index_search(q)
+    except ImportError:
+        return None
 
 
 def index(request):
@@ -47,10 +65,18 @@ def search(request):
     page_num = request.GET.get("page", 1)
 
     qs = Package.objects.select_related("site")
+    ranked = False
 
     if q:
-        # Use MySQL MATCH ... AGAINST for fulltext when available
-        qs = qs.filter(Q(name__icontains=q) | Q(description__icontains=q))
+        ids = _index_search(q)
+        if ids is not None:
+            # Full-text match: restrict to the ranked ids, keep the ranking
+            # for the default "relevance" sort.
+            qs = qs.filter(id__in=ids)
+            ranked = True
+        else:
+            # No index yet — fall back to a plain substring match.
+            qs = qs.filter(Q(name__icontains=q) | Q(description__icontains=q))
 
     if dialect:
         qs = qs.filter(dialect=dialect)
@@ -70,6 +96,8 @@ def search(request):
         qs = qs.order_by("-source_pushed_at")
     elif sort == "name":
         qs = qs.order_by("name")
+    elif ranked:
+        qs = qs.order_by(_rank_case(ids))
     else:
         # Default: stars then name — surfaces quality content first
         qs = qs.order_by("-stars", "name")

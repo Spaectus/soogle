@@ -3,6 +3,9 @@
 import os
 import sys
 
+# The repo root (parent of web/) holds the scrape package (shared search index).
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 
 def main():
     """Run administrative tasks."""
